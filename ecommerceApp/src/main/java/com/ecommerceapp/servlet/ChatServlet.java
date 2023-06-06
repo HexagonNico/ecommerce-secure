@@ -15,6 +15,7 @@ import java.security.Key;
 import java.security.KeyPair;
 import java.sql.Connection;
 import java.sql.PreparedStatement;
+import java.sql.ResultSet;
 import java.sql.SQLException;
 import java.util.List;
 
@@ -36,7 +37,7 @@ public class ChatServlet extends HttpServlet {
 		out.println("<h1>Chat:</h1>");
 		// TODO: Retrieve messages from database
 //		String query = "";
-//		try(Connection connection = DatabaseManager.getConnection(); PreparedStatement statement = connection.prepareStatement(query)) {
+//		try(PreparedStatement statement = DatabaseManager.getConnection().prepareStatement(query)) {
 //			ResultSet resultSet = statement.executeQuery();
 //			while(resultSet.next()) {
 //				String message = resultSet.getString("message");
