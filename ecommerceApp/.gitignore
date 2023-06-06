@@ -1,0 +1,26 @@
+# Java
+*.class
+*.jar
+hs_err_pid*
+
+# Maven
+target/
+
+# Swing
+*.war
+
+# IntelliJ
+.idea/
+*.iml
+*.iws
+
+# Eclipse
+.settings/
+.classpath
+.project
+
+# Visual Studio Code
+.vscode/
+
+# Mac OS X
+.DS_Store

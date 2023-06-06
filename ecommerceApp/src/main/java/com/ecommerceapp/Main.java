@@ -1,5 +1,6 @@
 package com.ecommerceapp;
 
+import com.ecommerceapp.servlet.*;
 import org.apache.catalina.Context;
 import org.apache.catalina.LifecycleException;
 import org.apache.catalina.startup.Tomcat;
@@ -29,7 +30,7 @@ public class Main {
         tomcat.getConnector();
 
         String contextPath = "";
-        String docBase = new File("ecommerceApp").getAbsolutePath();
+        String docBase = new File("").getAbsolutePath();
 
         Context context = tomcat.addContext(contextPath, docBase);
 
@@ -71,9 +72,13 @@ public class Main {
 
         Tomcat.addServlet(context, "default", new DefaultServlet());
         context.addServletMappingDecoded("/", "default");
-        
+
         Tomcat.addServlet(context, "replyServlet", new ReplyServlet());
         context.addServletMappingDecoded("/replyServlet", "replyServlet");
+
+        Tomcat.addServlet(context, "chat", new ChatServlet());
+        context.addServletMappingDecoded("/chat", "chat");
+
         tomcat.start();
         System.out.println("📡 HTTP Tomcat Embedded listening on port 8080!");
         tomcat.getServer().await();
