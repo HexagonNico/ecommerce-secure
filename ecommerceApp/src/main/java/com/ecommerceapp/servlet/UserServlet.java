@@ -9,6 +9,7 @@ import java.util.logging.Level;
 import java.util.logging.Logger;
 import java.sql.ResultSet;
 
+import com.ecommerceapp.security.KeysGenerator;
 import com.ecommerceapp.utility.DatabaseManager;
 
 import jakarta.servlet.ServletException;
@@ -31,9 +32,9 @@ public class UserServlet extends HttpServlet {
 
             Connection connection = DatabaseManager.getConnection();
             try {
-                PreparedStatement preparedStatement = connection.prepareStatement("SELECT * FROM Users WHERE email = ? AND Password = ?");
+                PreparedStatement preparedStatement = connection.prepareStatement("SELECT * FROM Users WHERE email = ? AND Password = ? + salt");
                 preparedStatement.setString(1, email);
-                preparedStatement.setString(2, password);
+                preparedStatement.setInt(2, password.hashCode());
                 ResultSet resultSet = preparedStatement.executeQuery();
 
                 if (resultSet.next()) {
@@ -62,14 +63,17 @@ public class UserServlet extends HttpServlet {
             String email = request.getParameter("email");
             String password = request.getParameter("password");
             String userType = request.getParameter("userType");
+            long salt = KeysGenerator.linearCongruentialGenerator();
+            long passwordHash = password.hashCode() + salt;
         
             Connection connection = DatabaseManager.getConnection();
             try {
-                PreparedStatement preparedStatement = connection.prepareStatement("INSERT INTO Users(Username, email, Password, UserType) VALUES (?,?,?,?)", PreparedStatement.RETURN_GENERATED_KEYS);
+                PreparedStatement preparedStatement = connection.prepareStatement("INSERT INTO Users(Username, email, Password, salt, UserType) VALUES (?,?,?,?,?)", PreparedStatement.RETURN_GENERATED_KEYS);
                 preparedStatement.setString(1, name);
                 preparedStatement.setString(2, email);
-                preparedStatement.setString(3, password);
-                preparedStatement.setString(4, userType);
+                preparedStatement.setLong(3, passwordHash);
+                preparedStatement.setLong(4, salt);
+                preparedStatement.setString(5, userType);
                 preparedStatement.executeUpdate();
         
                 ResultSet generatedKeys = preparedStatement.getGeneratedKeys();
