@@ -2,78 +2,61 @@ package com.ecommerceapp.servlet;
 
 import com.ecommerceapp.security.Encryption;
 import com.ecommerceapp.security.KeyExchange;
-import com.ecommerceapp.utility.DatabaseManager;
+import com.ecommerceapp.utility.Message;
+import jakarta.servlet.ServletException;
 import jakarta.servlet.annotation.WebServlet;
 import jakarta.servlet.http.HttpServlet;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
+import org.json.JSONArray;
+import org.json.JSONObject;
 
 import javax.crypto.KeyAgreement;
 import java.io.IOException;
-import java.io.PrintWriter;
-import java.security.Key;
 import java.security.KeyPair;
-import java.sql.Connection;
-import java.sql.PreparedStatement;
-import java.sql.ResultSet;
-import java.sql.SQLException;
-import java.util.List;
+import java.util.concurrent.ConcurrentLinkedQueue;
 
-@WebServlet("chat")
+@WebServlet(name = "chatServlet", urlPatterns = {"/chat"})
 public class ChatServlet extends HttpServlet {
 
-	private Key sharedKey = null;
+	private static final ConcurrentLinkedQueue<Message> messages = new ConcurrentLinkedQueue<>();
+	private static final String SHARED_KEY;
 
-	@Override
-	protected void doGet(HttpServletRequest request, HttpServletResponse response) throws IOException {
+	static {
 		KeyPair keyA = KeyExchange.generateKeys();
 		KeyPair keyB = KeyExchange.generateKeys();
 		KeyAgreement agreementA = KeyExchange.generateAgreement(keyA.getPrivate());
-		this.sharedKey = KeyExchange.generateSymmetricKey(agreementA, keyB.getPublic());
-		PrintWriter out = response.getWriter();
-		out.println("<html>");
-		out.println("<head><title>Chat</title></head>");
-		out.println("<body>");
-		out.println("<h1>Chat:</h1>");
-		// TODO: Retrieve messages from database
-//		String query = "";
-//		try(PreparedStatement statement = DatabaseManager.getConnection().prepareStatement(query)) {
-//			ResultSet resultSet = statement.executeQuery();
-//			while(resultSet.next()) {
-//				String message = resultSet.getString("message");
-//			}
-//		} catch (SQLException e) {
-//			e.printStackTrace();
-//			response.setStatus(HttpServletResponse.SC_INTERNAL_SERVER_ERROR);
-//		}
-		List<String> messages = List.of(
-				"This is a test message",
-				"This is also a test message"
-		);
-		messages.forEach(message -> out.println("<p>" + message + "</p>"));
-		out.println("<form action=\"/chat\" method=\"post\">");
-		out.println("<input type=\"text\" id=\"message\" name=\"message\"><br>");
-		out.println("<input type=\"submit\" name=\"send\" value=\"Send\" />");
-		out.println("</body>");
-		out.println("</html>");
+		SHARED_KEY = KeyExchange.toBinaryString(KeyExchange.generateSymmetricKey(agreementA, keyB.getPublic()));
 	}
 
 	@Override
-	protected void doPost(HttpServletRequest request, HttpServletResponse response) throws IOException {
-		if(this.sharedKey != null) {
-			String plainText = request.getParameter("message");
-			String encryptedText = Encryption.encryptECB(plainText, KeyExchange.toBinaryString(this.sharedKey));
-			String query = "INSERT INTO Chats(message) VALUES(?)"; // TODO: Add to database
-			try(Connection connection = DatabaseManager.getConnection(); PreparedStatement statement = connection.prepareStatement(query)) {
-				statement.setString(1, encryptedText);
-				statement.executeUpdate();
-			} catch (SQLException e) {
-				e.printStackTrace();
-				response.setStatus(HttpServletResponse.SC_INTERNAL_SERVER_ERROR);
-			}
-		} else {
-			response.setStatus(HttpServletResponse.SC_INTERNAL_SERVER_ERROR);
+	protected void doPost(HttpServletRequest req, HttpServletResponse resp) throws ServletException, IOException {
+		String plainText = req.getParameter("message");
+		String sender = req.getParameter("sender");
+		String encryptedText = Encryption.encryptECB(plainText, SHARED_KEY);
+		messages.add(new Message(encryptedText, sender));
+		resp.setStatus(HttpServletResponse.SC_OK);
+		resp.sendRedirect(req.getContextPath() + "/src/main/webapp/views/chat.html");
+	}
+
+	@Override
+	protected void doGet(HttpServletRequest req, HttpServletResponse resp) throws ServletException, IOException {
+		resp.setContentType("application/json");
+		resp.setCharacterEncoding("UTF-8");
+
+		// Create a JSON array to store the messages
+		JSONArray jsonMessages = new JSONArray();
+
+		for (Message message : messages) {
+			// Create a JSON object for each message
+			JSONObject jsonMessage = new JSONObject();
+			jsonMessage.put("content", Encryption.decryptECB(message.getContent(), SHARED_KEY));
+			jsonMessage.put("sender", message.getSender());
+
+			jsonMessages.put(jsonMessage);
 		}
-		response.sendRedirect(request.getContextPath() + "/src/main/webapp/views/chat.html");
+
+		// Write the JSON array as the response
+		resp.getWriter().write(jsonMessages.toString());
 	}
 }
