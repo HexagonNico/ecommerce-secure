@@ -1,7 +1,14 @@
 package com.ecommerceapp.servlet;
 
+import jakarta.servlet.ServletException;
+import jakarta.servlet.annotation.WebServlet;
+import jakarta.servlet.http.HttpServlet;
+import jakarta.servlet.http.HttpServletRequest;
+import jakarta.servlet.http.HttpServletResponse;
+
+import java.io.File;
+import java.io.FileInputStream;
 import java.io.IOException;
-import java.sql.Blob;
 import java.sql.Connection;
 import java.sql.PreparedStatement;
 import java.sql.ResultSet;
@@ -9,12 +16,7 @@ import java.sql.SQLException;
 import java.util.logging.Level;
 import java.util.logging.Logger;
 
-import jakarta.servlet.ServletException;
-import jakarta.servlet.annotation.WebServlet;
-import jakarta.servlet.http.HttpServlet;
-import jakarta.servlet.http.HttpServletRequest;
-import jakarta.servlet.http.HttpServletResponse;
-
+import com.ecommerceapp.Main;
 import com.ecommerceapp.utility.DatabaseManager;
 
 @WebServlet("/getImageServlet")
@@ -29,24 +31,24 @@ public class GetImageServlet extends HttpServlet {
 
             try {
                 PreparedStatement preparedStatement = connection.prepareStatement(
-                        "SELECT product_image FROM Products WHERE ID = ?");
+                        "SELECT product_image_path FROM Products WHERE ID = ?");
                 preparedStatement.setInt(1, Integer.parseInt(productId));
 
                 ResultSet resultSet = preparedStatement.executeQuery();
 
                 if(resultSet.next()){
-                    Blob image = resultSet.getBlob("product_image");
-                    int blobLength = (int) image.length();
+                    String imagePath = resultSet.getString("product_image_path");
                     
-                    byte[] blobAsBytes = image.getBytes(1, blobLength);
+                    File imageFile = new File(Main.IMAGE_LOCATION + "/" + imagePath);
                     
-
-                    //when the blob object is no longer needed
-                    image.free();
-
-                    response.setContentType("image/jpeg"); // adjust this to match the image's original format
-                    response.getOutputStream().write(blobAsBytes);
-                    response.getOutputStream().flush();  
+                    response.setContentType("image/*"); // adjust this if you accept images other than JPEGs
+                    FileInputStream in = new FileInputStream(imageFile);
+                    byte[] buffer = new byte[1024];
+                    int length;
+                    while ((length = in.read(buffer)) != -1){
+                        response.getOutputStream().write(buffer, 0, length);
+                    }
+                    in.close();
                 }
             } catch (SQLException ex) {
                 Logger.getLogger(GetImageServlet.class.getName()).log(Level.SEVERE, null, ex);

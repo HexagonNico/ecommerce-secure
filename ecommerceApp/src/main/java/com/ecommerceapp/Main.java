@@ -8,7 +8,12 @@ import org.apache.catalina.servlets.DefaultServlet;
 import com.ecommerceapp.servlet.RegisterServlet;
 import com.ecommerceapp.servlet.ReplyServlet;
 import com.ecommerceapp.servlet.ReviewServlet;
+import com.ecommerceapp.servlet.SearchProductCustomerServlet;
+import com.ecommerceapp.servlet.SearchProductServlet;
 import com.ecommerceapp.servlet.UserServlet;
+
+import jakarta.servlet.MultipartConfigElement;
+
 import com.ecommerceapp.servlet.ProductServlet;
 import com.ecommerceapp.servlet.ChatServlet;
 import com.ecommerceapp.servlet.GetImageServlet;
@@ -23,6 +28,7 @@ import java.io.File;
 
 public class Main {
 
+    public static String IMAGE_LOCATION;
     public static void main(String[] args) throws LifecycleException {
         Tomcat tomcat = new Tomcat();
         tomcat.setBaseDir("temp");
@@ -30,7 +36,7 @@ public class Main {
         tomcat.getConnector();
 
         String contextPath = "";
-        String docBase = new File("").getAbsolutePath();
+        String docBase = new File("ecommerceApp").getAbsolutePath();
 
         Context context = tomcat.addContext(contextPath, docBase);
 
@@ -43,8 +49,24 @@ public class Main {
         Tomcat.addServlet(context, "loginServlet", new UserServlet());
         context.addServletMappingDecoded("/loginServlet", "loginServlet");
 
-        Tomcat.addServlet(context, "productServlet", new ProductServlet());
+        ProductServlet productServlet = new ProductServlet();
+
+        IMAGE_LOCATION = docBase + "/images";   // the directory location where files will be stored
+        long maxFileSize = -1L; // the maximum size allowed for uploaded files
+        long maxRequestSize = -1L; // the maximum size allowed for multipart/form-data requests
+        int fileSizeThreshold = 0; // the size threshold after which files will be written to disk
+        MultipartConfigElement multipartConfigElement = new MultipartConfigElement(
+           IMAGE_LOCATION,
+           maxFileSize,
+           maxRequestSize,
+           fileSizeThreshold
+        );
+
+        Tomcat.addServlet(context, "productServlet", productServlet)
+              .setMultipartConfigElement(multipartConfigElement);
+
         context.addServletMappingDecoded("/productServlet", "productServlet");
+
 
         Tomcat.addServlet(context, "getProductServlet", new GetProductServlet());
         context.addServletMappingDecoded("/getProductServlet", "getProductServlet");
@@ -72,20 +94,20 @@ public class Main {
 
         Tomcat.addServlet(context, "default", new DefaultServlet());
         context.addServletMappingDecoded("/", "default");
-
+        
         Tomcat.addServlet(context, "replyServlet", new ReplyServlet());
         context.addServletMappingDecoded("/replyServlet", "replyServlet");
 
-//        Tomcat.addServlet(context, "searchProductServlet", new SearchProductServlet());
-//        context.addServletMappingDecoded("/searchProductServlet", "searchProductServlet");
-//
-//        Tomcat.addServlet(context, "searchProductCustomerServlet", new SearchProductCustomerServlet());
-//        context.addServletMappingDecoded("/searchProductCustomerServlet", "searchProductCustomerServlet");
+        Tomcat.addServlet(context, "searchProductServlet", new SearchProductServlet());
+        context.addServletMappingDecoded("/searchProductServlet", "searchProductServlet");
+
+        Tomcat.addServlet(context, "searchProductCustomerServlet", new SearchProductCustomerServlet());
+        context.addServletMappingDecoded("/searchProductCustomerServlet", "searchProductCustomerServlet");
 
         Tomcat.addServlet(context, "chatServlet", new ChatServlet());
         context.addServletMappingDecoded("/chatServlet", "chatServlet");
 
-
+        
         tomcat.start();
         System.out.println("📡 HTTP Tomcat Embedded listening on port 8080!");
         tomcat.getServer().await();

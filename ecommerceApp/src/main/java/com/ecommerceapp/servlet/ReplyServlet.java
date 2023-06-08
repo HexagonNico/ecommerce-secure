@@ -8,6 +8,7 @@ import jakarta.servlet.http.HttpServletResponse;
 
 import java.io.IOException;
 import java.sql.Connection;
+import java.sql.PreparedStatement;
 import java.sql.Statement;
 import java.sql.SQLException;
 
@@ -23,11 +24,14 @@ public class ReplyServlet extends HttpServlet {
         try {
             Connection conn = DatabaseManager.getConnection();
 
-            Statement stmt = conn.createStatement();
-            String sql = "UPDATE Reviews SET reply = '"
-                    + replyText + "' WHERE order_item_id = '" + orderItemId + "'";
+            String sql = "UPDATE Reviews SET reply = ? WHERE order_item_id = ?";
 
-            int result = stmt.executeUpdate(sql);
+            // Create a PreparedStatement with the query
+            PreparedStatement preparedStatement = conn.prepareStatement(sql);
+            preparedStatement.setString(1, replyText);
+            preparedStatement.setString(2, orderItemId);
+
+            int result = preparedStatement.executeUpdate();
 
             if (result > 0) {
                 response.setStatus(HttpServletResponse.SC_OK);
@@ -35,7 +39,7 @@ public class ReplyServlet extends HttpServlet {
                 response.setStatus(HttpServletResponse.SC_INTERNAL_SERVER_ERROR);
             }
 
-            stmt.close();
+            preparedStatement.close();
             conn.close();
 
         } catch (SQLException se) {
@@ -47,3 +51,4 @@ public class ReplyServlet extends HttpServlet {
         }
     }
 }
+

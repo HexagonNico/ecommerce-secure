@@ -9,6 +9,7 @@ import jakarta.servlet.http.HttpSession;
 
 import java.io.IOException;
 import java.sql.Connection;
+import java.sql.PreparedStatement;
 import java.sql.Statement;
 import java.sql.SQLException;
 
@@ -26,12 +27,16 @@ public class ReviewServlet extends HttpServlet {
             // Get the database connection
             Connection conn = DatabaseManager.getConnection();
 
-            Statement stmt = conn.createStatement();
-            String sql = "INSERT INTO Reviews (order_item_id, review_text, star_rating) VALUES ('"
-                    + orderItemId + "', '" + reviewText + "', " + starRating + ")";
+            String sql = "INSERT INTO Reviews (order_item_id, review_text, star_rating) VALUES (?, ?, ?)";
+
+            // Create a PreparedStatement with the query
+            PreparedStatement preparedStatement = conn.prepareStatement(sql);
+            preparedStatement.setString(1, orderItemId);
+            preparedStatement.setString(2, reviewText);
+            preparedStatement.setString(3, starRating);
 
             // Update the review in the database
-            int result = stmt.executeUpdate(sql);
+            int result = preparedStatement.executeUpdate();
 
             if (result > 0) {
                 response.setStatus(HttpServletResponse.SC_OK);
@@ -39,7 +44,7 @@ public class ReviewServlet extends HttpServlet {
                 response.setStatus(HttpServletResponse.SC_INTERNAL_SERVER_ERROR);
             }
 
-            stmt.close();
+            preparedStatement.close();
             conn.close();
 
         } catch (SQLException se) {
@@ -51,3 +56,4 @@ public class ReviewServlet extends HttpServlet {
         }
     }
 }
+
