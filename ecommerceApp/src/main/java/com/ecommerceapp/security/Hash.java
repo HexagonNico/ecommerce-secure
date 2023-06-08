@@ -1,4 +1,4 @@
-package com.ecommerceapp.rsa;
+package com.ecommerceapp.security;
 
 import java.security.MessageDigest;
 import java.security.NoSuchAlgorithmException;

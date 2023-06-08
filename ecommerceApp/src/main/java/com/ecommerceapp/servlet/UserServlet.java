@@ -1,16 +1,9 @@
 package com.ecommerceapp.servlet;
 
-import java.io.IOException;
-import java.io.PrintWriter;
-import java.sql.Connection;
-import java.sql.PreparedStatement;
-import java.sql.SQLException;
-import java.util.logging.Level;
-import java.util.logging.Logger;
-import java.sql.ResultSet;
-
 import com.ecommerceapp.security.KeysGenerator;
 import com.ecommerceapp.utility.DatabaseManager;
+import com.ecommerceapp.security.RSA;
+import com.ecommerceapp.security.RSAKeys;
 
 import jakarta.servlet.ServletException;
 import jakarta.servlet.annotation.WebServlet;
@@ -19,12 +12,23 @@ import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
 import jakarta.servlet.http.HttpSession;
 
+import java.io.IOException;
+import java.io.PrintWriter;
+import java.sql.Connection;
+import java.sql.PreparedStatement;
+import java.sql.ResultSet;
+import java.sql.SQLException;
+import java.util.logging.Level;
+import java.util.logging.Logger;
+
 @WebServlet("/UserServlet")
 public class UserServlet extends HttpServlet {
     protected void doPost(HttpServletRequest request, HttpServletResponse response) throws ServletException, IOException {
         PrintWriter out = response.getWriter();
         String action = request.getParameter("action");
-        
+
+        RSA rsa = new RSA();  // Create an RSA instance
+
         if ("login".equalsIgnoreCase(action)) {
             // Login
             String email = request.getParameter("email");
@@ -32,22 +36,38 @@ public class UserServlet extends HttpServlet {
 
             Connection connection = DatabaseManager.getConnection();
             try {
-                PreparedStatement preparedStatement = connection.prepareStatement("SELECT * FROM Users WHERE email = ? AND Password = ? + salt");
+                PreparedStatement preparedStatement = connection.prepareStatement("SELECT * FROM Users WHERE email = ?");
                 preparedStatement.setString(1, email);
-                preparedStatement.setInt(2, password.hashCode());
                 ResultSet resultSet = preparedStatement.executeQuery();
 
                 if (resultSet.next()) {
-                    out.write("success");
-                    int generatedId = resultSet.getInt("ID");
-                    HttpSession session = request.getSession();
-                    session.setAttribute("userId", generatedId);
-                    String userType = resultSet.getString("UserType");
-                    if ("vendor".equalsIgnoreCase(userType)) {
-                        response.sendRedirect(request.getContextPath() + "src/main/webapp/views/profile.html");
-                    } else if ("customer".equalsIgnoreCase(userType)) {
-                        response.sendRedirect(request.getContextPath() + "src/main/webapp/views/customer.html");
-                    } 
+                    long salt = resultSet.getLong("salt");
+                    long storedPasswordHash = resultSet.getLong("Password");
+
+                    if (storedPasswordHash == password.hashCode() + salt) {
+                        out.write("success");
+                        int generatedId = resultSet.getInt("ID");
+
+                        // After successfully logging in, generate an RSA signature for the user ID
+                        String userId = String.valueOf(generatedId);
+                        RSAKeys userKeys = rsa.generateKeys();
+                        String userIdSignature = rsa.sign(userId, userKeys);
+
+                        // Store the user ID signature and private key in the session
+                        HttpSession session = request.getSession();
+                        session.setAttribute("userId", generatedId);
+                        session.setAttribute("userIdSignature", userIdSignature);
+                        session.setAttribute("privateKey", userKeys.getD());  // store the private key
+
+                        String userType = resultSet.getString("UserType");
+                        if ("vendor".equalsIgnoreCase(userType)) {
+                            response.sendRedirect(request.getContextPath() + "ecommerceApp/src/main/webapp/views/profile.html");
+                        } else if ("customer".equalsIgnoreCase(userType)) {
+                            response.sendRedirect(request.getContextPath() + "ecommerceApp/src/main/webapp/views/customer.html");
+                        }
+                    } else {
+                        out.write("failure");
+                    }
                 } else {
                     out.write("failure");
                 }
@@ -63,23 +83,29 @@ public class UserServlet extends HttpServlet {
             String email = request.getParameter("email");
             String password = request.getParameter("password");
             String userType = request.getParameter("userType");
+
             long salt = KeysGenerator.linearCongruentialGenerator();
             long passwordHash = password.hashCode() + salt;
-        
+
+            // Generate RSA keys
+            RSAKeys keys = rsa.generateKeys();
+
             Connection connection = DatabaseManager.getConnection();
             try {
-                PreparedStatement preparedStatement = connection.prepareStatement("INSERT INTO Users(Username, email, Password, salt, UserType) VALUES (?,?,?,?,?)", PreparedStatement.RETURN_GENERATED_KEYS);
+                PreparedStatement preparedStatement = connection.prepareStatement("INSERT INTO Users(Username, email, Password, salt, rsa_e, rsa_n, UserType) VALUES (?,?,?,?,?,?,?)", PreparedStatement.RETURN_GENERATED_KEYS);
                 preparedStatement.setString(1, name);
                 preparedStatement.setString(2, email);
                 preparedStatement.setLong(3, passwordHash);
                 preparedStatement.setLong(4, salt);
-                preparedStatement.setString(5, userType);
+                preparedStatement.setString(5, keys.getE().toString());
+                preparedStatement.setString(6, keys.getN().toString());
+                preparedStatement.setString(7, userType);
                 preparedStatement.executeUpdate();
-        
+
                 ResultSet generatedKeys = preparedStatement.getGeneratedKeys();
                 if (generatedKeys.next()) {
                     int generatedId = generatedKeys.getInt(1);
-        
+
                     if ("vendor".equalsIgnoreCase(userType)) {
                         // Insert the generated ID into the vendors table
                         PreparedStatement vendorStatement = connection.prepareStatement("INSERT INTO Vendors(user_id) VALUES (?)");
@@ -92,7 +118,7 @@ public class UserServlet extends HttpServlet {
                         customerStatement.executeUpdate();
                     }
                 }
-                response.sendRedirect(request.getContextPath() + "src/main/webapp/views/login.html");
+                response.sendRedirect(request.getContextPath() + "ecommerceApp/src/main/webapp/views/login.html");
             } catch (SQLException ex) {
                 Logger.getLogger(UserServlet.class.getName()).log(Level.SEVERE, null, ex);
             }
