@@ -96,8 +96,8 @@ function submitReply(event, orderItemId) {
 function approveOrder(orderId) {
     let formdata = new URLSearchParams();
     formdata.append("orderId", orderId);
-
-    fetch("/VendorServlet", {
+    console.log('button pressed')
+    fetch("/vendorServlet", {
         method: "POST",
         body: formdata,
     })
@@ -106,7 +106,6 @@ function approveOrder(orderId) {
                 throw new Error(response.statusText);
             }
             alert("Order approved");
-            // Here you might want to update the status of the order in the UI.
         })
         .catch((err) => console.error(err));
 }

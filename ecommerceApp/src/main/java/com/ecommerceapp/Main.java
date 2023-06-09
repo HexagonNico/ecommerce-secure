@@ -1,28 +1,12 @@
 package com.ecommerceapp;
 
+import com.ecommerceapp.servlet.*;
 import org.apache.catalina.Context;
 import org.apache.catalina.LifecycleException;
 import org.apache.catalina.startup.Tomcat;
 import org.apache.catalina.servlets.DefaultServlet;
 
-import com.ecommerceapp.servlet.RegisterServlet;
-import com.ecommerceapp.servlet.ReplyServlet;
-import com.ecommerceapp.servlet.ReviewServlet;
-import com.ecommerceapp.servlet.SearchProductCustomerServlet;
-import com.ecommerceapp.servlet.SearchProductServlet;
-import com.ecommerceapp.servlet.UserServlet;
-
 import jakarta.servlet.MultipartConfigElement;
-
-import com.ecommerceapp.servlet.ProductServlet;
-import com.ecommerceapp.servlet.ChatServlet;
-import com.ecommerceapp.servlet.GetImageServlet;
-import com.ecommerceapp.servlet.GetOrdersCustomerServlet;
-import com.ecommerceapp.servlet.GetOrdersServlet;
-import com.ecommerceapp.servlet.GetProductServlet;
-import com.ecommerceapp.servlet.GetProductsCustomer;
-import com.ecommerceapp.servlet.GetSingleProductServlet;
-import com.ecommerceapp.servlet.OrderServlet;
 
 import java.io.File;
 
@@ -106,6 +90,9 @@ public class Main {
 
         Tomcat.addServlet(context, "chatServlet", new ChatServlet());
         context.addServletMappingDecoded("/chatServlet", "chatServlet");
+
+        Tomcat.addServlet(context, "vendorServlet", new VendorServlet());
+        context.addServletMappingDecoded("/vendorServlet", "vendorServlet");
 
         
         tomcat.start();

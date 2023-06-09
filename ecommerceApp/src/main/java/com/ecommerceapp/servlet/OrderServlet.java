@@ -8,6 +8,7 @@ import jakarta.servlet.http.HttpSession;
 import jakarta.servlet.ServletException;
 
 import java.io.IOException;
+import java.security.NoSuchAlgorithmException;
 import java.sql.*;
 import java.util.Date;
 import java.util.Map;
@@ -70,7 +71,6 @@ public class OrderServlet extends HttpServlet {
                 BigInteger publicKeyE = new BigInteger(resultSet.getString("rsa_e"));
                 BigInteger publicKeyN = new BigInteger(resultSet.getString("rsa_n"));
                 RSAKeys userKeys = new RSAKeys(publicKeyE, publicKeyN, privateKey);
-
                 // Insert all the items in the cart into the OrderItems table
                 for (Map.Entry<Integer, Integer> entry : cart.entrySet()) {
                     int productID = entry.getKey();
@@ -121,6 +121,8 @@ public class OrderServlet extends HttpServlet {
 
             Logger.getLogger(OrderServlet.class.getName()).log(Level.SEVERE, null, ex);
             response.setStatus(HttpServletResponse.SC_INTERNAL_SERVER_ERROR);
+        } catch (NoSuchAlgorithmException e) {
+            throw new RuntimeException(e);
         } finally {
             try {
                 connection.setAutoCommit(true);

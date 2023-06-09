@@ -9,6 +9,7 @@ import jakarta.servlet.http.HttpServletResponse;
 
 import java.io.IOException;
 import java.math.BigInteger;
+import java.security.NoSuchAlgorithmException;
 import java.sql.Connection;
 import java.sql.PreparedStatement;
 import java.sql.ResultSet;
@@ -20,9 +21,9 @@ import com.ecommerceapp.utility.DatabaseManager;
 
 @WebServlet("/VendorServlet")
 public class VendorServlet extends HttpServlet {
+
     protected void doPost(HttpServletRequest request, HttpServletResponse response)
             throws IOException {
-
         RSA rsa = new RSA();
         int orderId = Integer.parseInt(request.getParameter("orderId"));
 
@@ -40,6 +41,9 @@ public class VendorServlet extends HttpServlet {
                 BigInteger publicKeyN = new BigInteger(resultSet.getString("rsa_n"));
                 RSAKeys userKeys = new RSAKeys(publicKeyE, publicKeyN);
 
+                System.out.println(publicKeyE);
+                System.out.println(publicKeyN);
+
                 // Verify the digital signature of the order
                 PreparedStatement orderStatement = connection.prepareStatement("SELECT OrderItems.id, OrderItems.digital_signature " +
                         "FROM OrderItems WHERE OrderItems.order_id = ?");
@@ -52,7 +56,26 @@ public class VendorServlet extends HttpServlet {
                     String signedOrderItemData = orderResultSet.getString("digital_signature");
                     String orderItemId = orderResultSet.getString("id");
 
-                    if (!rsa.verify(orderItemId, signedOrderItemData, userKeys)) {
+                    // Fetch product ID and quantity for the current order item
+                    PreparedStatement itemStatement = connection.prepareStatement(
+                            "SELECT product_id, quantity FROM OrderItems WHERE id = ?");
+                    itemStatement.setString(1, orderItemId);
+                    ResultSet itemResultSet = itemStatement.executeQuery();
+
+                    if (itemResultSet.next()) {
+                        int productId = itemResultSet.getInt("product_id");
+                        int quantity = itemResultSet.getInt("quantity");
+
+                        // Reconstruct the data string with order ID, product ID, and quantity
+                        String orderItemData = orderId + "-" + productId + "-" + quantity;
+
+                        if (!rsa.verify(orderItemData, signedOrderItemData, userKeys)) {
+                            allOrderItemsVerified = false;
+                            break;
+                        }
+                        System.out.println(allOrderItemsVerified);
+                    } else {
+                        // Order item not found
                         allOrderItemsVerified = false;
                         break;
                     }
@@ -76,6 +99,8 @@ public class VendorServlet extends HttpServlet {
         } catch (SQLException ex) {
             Logger.getLogger(VendorServlet.class.getName()).log(Level.SEVERE, null, ex);
             response.setStatus(HttpServletResponse.SC_INTERNAL_SERVER_ERROR);
+        } catch (NoSuchAlgorithmException e) {
+            throw new RuntimeException(e);
         }
     }
 }

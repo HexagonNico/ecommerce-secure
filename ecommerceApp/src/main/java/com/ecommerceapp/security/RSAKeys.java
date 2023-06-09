@@ -18,8 +18,8 @@ public class RSAKeys {
 
     }
 
-    public RSAKeys(BigInteger d, BigInteger n) {
-        this.d = d;
+    public RSAKeys(BigInteger e, BigInteger n) {
+        this.e = e;
         this.n = n;
     }
 

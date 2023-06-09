@@ -3,6 +3,7 @@ package com.ecommerceapp.security;
 import java.math.BigInteger;
 import java.security.KeyPair;
 import java.security.KeyPairGenerator;
+import java.security.MessageDigest;
 import java.security.NoSuchAlgorithmException;
 import java.security.interfaces.RSAPrivateKey;
 import java.security.interfaces.RSAPublicKey;
@@ -69,42 +70,23 @@ public class RSA {
         }
     }
 
-    public String sign(String plainText, RSAKeys keys) {
-        // Create a new Hash instance
-        Hash hash = new Hash();
-
-        // Hash the plaintext using SHA-256
-        String hashedPlainText = hash.getDigest(plainText, "SHA-256");
-
-        // Convert the hashed plaintext to a BigInteger
-        BigInteger message = new BigInteger(hashedPlainText.getBytes());
-
-        // Sign the hashed message using the private key (d)
-        BigInteger signedMessage = message.modPow(keys.d, keys.n);
-
-        // Return the signed message
+    public String sign(String plainText, RSAKeys keys) throws NoSuchAlgorithmException {
+        MessageDigest md = MessageDigest.getInstance("SHA-256");
+        byte[] messageHash = md.digest(plainText.getBytes());
+        BigInteger message = new BigInteger(1, messageHash);
+        BigInteger signedMessage = message.modPow(keys.getD(), keys.getN());
         return Base64.getEncoder().encodeToString(signedMessage.toByteArray());
     }
 
-    public boolean verify(String plainText, String signature, RSAKeys keys) {
-        // Create a new Hash instance
-        Hash hash = new Hash();
-
-        // Hash the plaintext using SHA-256
-        String hashedPlainText = hash.getDigest(plainText, "SHA-256");
-
-        // Convert the hashed plaintext to a BigInteger
-        BigInteger hashedMessage = new BigInteger(hashedPlainText.getBytes());
-
-        // Decode the signature from Base64 and convert to a BigInteger
+    public boolean verify(String plainText, String signature, RSAKeys keys) throws NoSuchAlgorithmException {
+        MessageDigest md = MessageDigest.getInstance("SHA-256");
+        byte[] messageHash = md.digest(plainText.getBytes());
+        BigInteger hashedMessage = new BigInteger(1, messageHash);
         BigInteger signedMessage = new BigInteger(Base64.getDecoder().decode(signature));
-
-        // Verify the signature using the public key (e)
-        BigInteger decryptedMessage = signedMessage.modPow(keys.e, keys.n);
-
-        // Return whether the decrypted message equals the hashed plaintext
+        BigInteger decryptedMessage = signedMessage.modPow(keys.getE(), keys.getN());
         return decryptedMessage.equals(hashedMessage);
     }
+
 
     public static void main(String[] args) {
         RSA rsa = new RSA();

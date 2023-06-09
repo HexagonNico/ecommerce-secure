@@ -15,6 +15,7 @@ import jakarta.servlet.http.HttpSession;
 import java.io.IOException;
 import java.io.PrintWriter;
 import java.math.BigInteger;
+import java.security.NoSuchAlgorithmException;
 import java.sql.Connection;
 import java.sql.PreparedStatement;
 import java.sql.ResultSet;
@@ -75,6 +76,8 @@ public class UserServlet extends HttpServlet {
             } catch (SQLException ex) {
                 Logger.getLogger(UserServlet.class.getName()).log(Level.SEVERE, null, ex);
                 out.write("error");
+            } catch (NoSuchAlgorithmException e) {
+                throw new RuntimeException(e);
             } finally {
                 out.close();
             }
