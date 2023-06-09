@@ -1,6 +1,7 @@
 package com.ecommerceapp.servlet;
 
 import com.ecommerceapp.security.RSA;
+import com.ecommerceapp.security.RSAKeys;
 import jakarta.servlet.annotation.WebServlet;
 import jakarta.servlet.http.HttpServlet;
 import jakarta.servlet.http.HttpServletRequest;
@@ -8,6 +9,7 @@ import jakarta.servlet.http.HttpServletResponse;
 import jakarta.servlet.http.HttpSession;
 
 import java.io.IOException;
+import java.math.BigInteger;
 import java.sql.Connection;
 import java.sql.PreparedStatement;
 import java.sql.ResultSet;
@@ -23,34 +25,61 @@ public class VendorServlet extends HttpServlet {
             throws IOException {
 
         HttpSession session = request.getSession();
-        int userId = (int) session.getAttribute("userId");
-        String privateKey = (String) session.getAttribute("privateKey");
+        int vendorId = (int) session.getAttribute("userId");
+        BigInteger privateKey = new BigInteger((String) session.getAttribute("privateKey"));
+
+        RSA rsa = new RSA();
+
         int orderId = Integer.parseInt(request.getParameter("orderId"));
 
-        // First, make sure the order exists and is for this vendor
         Connection connection = DatabaseManager.getConnection();
         try {
-            PreparedStatement preparedStatement = connection.prepareStatement("SELECT * FROM Orders WHERE ID = ? AND vendor_id = ?");
+            // Fetch customer's public keys from the database
+            PreparedStatement preparedStatement = connection.prepareStatement("SELECT Users.rsa_e, Users.rsa_n FROM Users " +
+                    "INNER JOIN Orders ON Users.ID = Orders.customer_id " +
+                    "WHERE Orders.ID = ?");
             preparedStatement.setInt(1, orderId);
-            preparedStatement.setInt(2, userId);
             ResultSet resultSet = preparedStatement.executeQuery();
 
             if (resultSet.next()) {
-                String orderInfo = "OrderID:" + orderId + ",Status:Approved";
+                BigInteger publicKeyE = new BigInteger(resultSet.getString("rsa_e"));
+                BigInteger publicKeyN = new BigInteger(resultSet.getString("rsa_n"));
+                RSAKeys userKeys = new RSAKeys(publicKeyE, publicKeyN);
 
-                RSA rsa = new RSA();
-                String signedOrderInfo = rsa.sign(orderInfo, privateKey);
+                // Verify the digital signature of the order
+                PreparedStatement orderStatement = connection.prepareStatement("SELECT OrderItems.digital_signature " +
+                        "FROM OrderItems INNER JOIN Orders ON OrderItems.order_id = Orders.ID " +
+                        "WHERE OrderItems.order_id = ? AND Orders.customer_id = ?");
+                orderStatement.setInt(1, orderId);
+                orderStatement.setInt(2, vendorId);
+                ResultSet orderResultSet = orderStatement.executeQuery();
 
-                // Now we update the order with the approved status and the digital signature
-                PreparedStatement updateStatement = connection.prepareStatement("UPDATE Orders SET Status = ?, DigitalSignature = ? WHERE ID = ?");
-                updateStatement.setString(1, "Approved");
-                updateStatement.setString(2, signedOrderInfo);
-                updateStatement.setInt(3, orderId);
-                updateStatement.executeUpdate();
+                boolean allOrderItemsVerified = true;
 
-                response.setStatus(HttpServletResponse.SC_OK);
+                while (orderResultSet.next()) {
+                    String signedOrderItemData = orderResultSet.getString("DigitalSignature");
+                    String orderItemData = orderId + "-" + signedOrderItemData;
+
+                    if (!rsa.verify(orderItemData, signedOrderItemData, userKeys)) {
+                        allOrderItemsVerified = false;
+                        break;
+                    }
+                }
+
+                if (allOrderItemsVerified) {
+
+                    PreparedStatement updateStatement = connection.prepareStatement("UPDATE Orders SET Status = ? WHERE ID = ?");
+                    updateStatement.setString(1, "Approved");
+                    updateStatement.setInt(2, orderId);
+                    updateStatement.executeUpdate();
+
+                    response.setStatus(HttpServletResponse.SC_OK);
+                } else {
+                    // Invalid digital signature in one or more order items
+                    response.setStatus(HttpServletResponse.SC_BAD_REQUEST);
+                }
             } else {
-                // If the order doesn't exist or isn't for this vendor, return an error status
+                // Customer not found
                 response.setStatus(HttpServletResponse.SC_BAD_REQUEST);
             }
         } catch (SQLException ex) {
