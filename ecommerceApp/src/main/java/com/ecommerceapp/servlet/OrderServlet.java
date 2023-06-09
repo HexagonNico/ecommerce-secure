@@ -32,7 +32,7 @@ public class OrderServlet extends HttpServlet {
         HttpSession session = request.getSession();
         int customerID = (int) session.getAttribute("userId");
 
-        BigInteger privateKey = (BigInteger) session.getAttribute("privateKey"); // Get the private key from the session
+        BigInteger privateKey = new BigInteger((String) session.getAttribute("privateKey"));
 
         RSA rsa = new RSA();  // Create an RSA instance
 
@@ -76,13 +76,17 @@ public class OrderServlet extends HttpServlet {
                     int productID = entry.getKey();
                     int quantity = entry.getValue();
 
-                    PreparedStatement preparedStatement2 = connection.prepareStatement("SELECT price FROM Products WHERE ID = ?");
-                    preparedStatement.setInt(1, productID);
-                    ResultSet resultSet2 = preparedStatement2.executeQuery();
-                    float price = 0;
-                    if (resultSet.next()) {
-                        price = resultSet2.getFloat("price");
+                    System.out.println(productID);
+
+                    double productPrice = 0;
+                    PreparedStatement productStatement = connection.prepareStatement("SELECT product_price FROM Products WHERE ID = ?");
+                    productStatement.setInt(1, productID);
+                    ResultSet productResultSet = productStatement.executeQuery();
+
+                    if (productResultSet.next()) {
+                        productPrice = productResultSet.getDouble("product_price");
                     }
+
 
                     // Generate the digital signature for each order item
                     String orderItemData = orderID + "-" + productID + "-" + quantity;
@@ -93,8 +97,8 @@ public class OrderServlet extends HttpServlet {
                     itemStatement.setInt(1, orderID);
                     itemStatement.setInt(2, productID);
                     itemStatement.setInt(3, quantity);
-                    itemStatement.setFloat(3, price);
-                    itemStatement.setString(4, digitalSignature);
+                    itemStatement.setDouble(4, productPrice);
+                    itemStatement.setString(5, digitalSignature);
                     itemStatement.executeUpdate();
                 }
             }
