@@ -6,7 +6,6 @@ import jakarta.servlet.annotation.WebServlet;
 import jakarta.servlet.http.HttpServlet;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
-import jakarta.servlet.http.HttpSession;
 
 import java.io.IOException;
 import java.math.BigInteger;
@@ -24,12 +23,7 @@ public class VendorServlet extends HttpServlet {
     protected void doPost(HttpServletRequest request, HttpServletResponse response)
             throws IOException {
 
-        HttpSession session = request.getSession();
-        int vendorId = (int) session.getAttribute("userId");
-        BigInteger privateKey = new BigInteger((String) session.getAttribute("privateKey"));
-
         RSA rsa = new RSA();
-
         int orderId = Integer.parseInt(request.getParameter("orderId"));
 
         Connection connection = DatabaseManager.getConnection();
@@ -47,27 +41,24 @@ public class VendorServlet extends HttpServlet {
                 RSAKeys userKeys = new RSAKeys(publicKeyE, publicKeyN);
 
                 // Verify the digital signature of the order
-                PreparedStatement orderStatement = connection.prepareStatement("SELECT OrderItems.digital_signature " +
-                        "FROM OrderItems INNER JOIN Orders ON OrderItems.order_id = Orders.ID " +
-                        "WHERE OrderItems.order_id = ? AND Orders.customer_id = ?");
+                PreparedStatement orderStatement = connection.prepareStatement("SELECT OrderItems.id, OrderItems.digital_signature " +
+                        "FROM OrderItems WHERE OrderItems.order_id = ?");
                 orderStatement.setInt(1, orderId);
-                orderStatement.setInt(2, vendorId);
                 ResultSet orderResultSet = orderStatement.executeQuery();
 
                 boolean allOrderItemsVerified = true;
 
                 while (orderResultSet.next()) {
-                    String signedOrderItemData = orderResultSet.getString("DigitalSignature");
-                    String orderItemData = orderId + "-" + signedOrderItemData;
+                    String signedOrderItemData = orderResultSet.getString("digital_signature");
+                    String orderItemId = orderResultSet.getString("id");
 
-                    if (!rsa.verify(orderItemData, signedOrderItemData, userKeys)) {
+                    if (!rsa.verify(orderItemId, signedOrderItemData, userKeys)) {
                         allOrderItemsVerified = false;
                         break;
                     }
                 }
 
                 if (allOrderItemsVerified) {
-
                     PreparedStatement updateStatement = connection.prepareStatement("UPDATE Orders SET Status = ? WHERE ID = ?");
                     updateStatement.setString(1, "Approved");
                     updateStatement.setInt(2, orderId);
