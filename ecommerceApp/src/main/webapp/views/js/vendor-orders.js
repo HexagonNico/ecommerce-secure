@@ -50,14 +50,16 @@ window.onload = function() {
                     `}` : ''}
                 </div>
             `).join('');
-            
+
 
                 orderCard.innerHTML = `
-                    <h3>Order ID: ${ordersMap[id].id}</h3>
-                    ${itemsHtml}
-                    <p>Status: ${ordersMap[id].status}</p>
-                    <p>Order Date: ${new Date(ordersMap[id].orderDate).toLocaleDateString()}</p>
+                <h3>Order ID: ${ordersMap[id].id}</h3>
+                ${itemsHtml}
+                <p>Status: ${ordersMap[id].status}</p>
+                <p>Order Date: ${new Date(ordersMap[id].orderDate).toLocaleDateString()}</p>
+                <button onclick="approveOrder(${ordersMap[id].id})">Approve</button>
                 `;
+
 
                 ordersDiv.appendChild(orderCard);
             }
@@ -89,4 +91,22 @@ function submitReply(event, orderItemId) {
     `;
     })
     .catch((err) => console.error(err));
+}
+
+function approveOrder(orderId) {
+    let formdata = new URLSearchParams();
+    formdata.append("orderId", orderId);
+
+    fetch("/VendorServlet", {
+        method: "POST",
+        body: formdata,
+    })
+        .then((response) => {
+            if (!response.ok) {
+                throw new Error(response.statusText);
+            }
+            alert("Order approved");
+            // Here you might want to update the status of the order in the UI.
+        })
+        .catch((err) => console.error(err));
 }

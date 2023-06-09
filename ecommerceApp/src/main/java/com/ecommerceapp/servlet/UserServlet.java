@@ -14,6 +14,7 @@ import jakarta.servlet.http.HttpSession;
 
 import java.io.IOException;
 import java.io.PrintWriter;
+import java.math.BigInteger;
 import java.sql.Connection;
 import java.sql.PreparedStatement;
 import java.sql.ResultSet;
@@ -57,13 +58,13 @@ public class UserServlet extends HttpServlet {
                         HttpSession session = request.getSession();
                         session.setAttribute("userId", generatedId);
                         session.setAttribute("userIdSignature", userIdSignature);
-                        session.setAttribute("privateKey", userKeys.getD());  // store the private key
+                        session.setAttribute("privateKey", userKeys.getD().toString());  // store the private key as string
 
                         String userType = resultSet.getString("UserType");
                         if ("vendor".equalsIgnoreCase(userType)) {
-                            response.sendRedirect(request.getContextPath() + "ecommerceApp/src/main/webapp/views/profile.html");
+                            response.sendRedirect(request.getContextPath() + "src/main/webapp/views/profile.html");
                         } else if ("customer".equalsIgnoreCase(userType)) {
-                            response.sendRedirect(request.getContextPath() + "ecommerceApp/src/main/webapp/views/customer.html");
+                            response.sendRedirect(request.getContextPath() + "src/main/webapp/views/customer.html");
                         }
                     } else {
                         out.write("failure");
@@ -118,7 +119,7 @@ public class UserServlet extends HttpServlet {
                         customerStatement.executeUpdate();
                     }
                 }
-                response.sendRedirect(request.getContextPath() + "ecommerceApp/src/main/webapp/views/login.html");
+                response.sendRedirect(request.getContextPath() + "src/main/webapp/views/login.html");
             } catch (SQLException ex) {
                 Logger.getLogger(UserServlet.class.getName()).log(Level.SEVERE, null, ex);
             }

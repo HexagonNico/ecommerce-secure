@@ -18,6 +18,11 @@ public class RSAKeys {
 
     }
 
+    public RSAKeys(BigInteger d, BigInteger n) {
+        this.d = d;
+        this.n = n;
+    }
+
     public BigInteger getE() {
         return e;
     }
